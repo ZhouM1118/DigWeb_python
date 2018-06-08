@@ -15,6 +15,7 @@ import time
 
 global_whu_url = 'http://www.whu.edu.cn/'
 global_hust_url = 'http://uzone.univs.cn/'
+global_ccnu_url = 'http://www.ccnu.edu.cn/'
 
 
 def get_url_content(url):
@@ -69,7 +70,7 @@ def lecture_whu():
     school_name = soup.title.string
     #设置email主题
     email['subject'] = school_name
-    # 获取通知通告的总条数
+    # 获取通知通告的总条数                   fanye163537
     lectures_num_str = soup.find_all(id="fanye46693")[0].string
     lectures_num = int(lectures_num_str.split()[0][1:(len(lectures_num_str.split()[0]) - 1)])
 
@@ -190,6 +191,70 @@ def lecture_hust():
     return result
 
 
+# 爬取华师通知通告
+def lecture_ccnu():
+    result = {}
+    email = {}
+    lecture_list = []
+    result['flag'] = 1
+    url = 'http://www.ccnu.edu.cn/hdyg/syhd.htm'
+    url_content = get_url_content(url)
+    soup = BeautifulSoup(url_content)
+    school_name = soup.title.string
+    email['subject'] = school_name
+    lecture_num_str = soup.find_all(id='fanye163537')[0].string
+    lecture_num = int(lecture_num_str.split('共')[1].split('条')[0])
+    lectures = soup.find_all(id=re.compile('line_u12_\d'))
+    find_params = {'school_name': school_name}
+    school = find_school(School.School, find_params)
+    if school is None:
+        for i in range(10):
+            lecture = lectures[i].a.string + ':' + (global_ccnu_url + lectures[i].a['href'])
+            lecture_list.append(lecture)
+        insert_params = {'school_name': school_name, 'lectures_num': lecture_num}
+        email['content'] = lecture_list
+        if emailController.send(email):
+            result['flag'] = 0
+            if insert_school(School.School, insert_params) is not True:
+                result['flag'] = -1
+                result['msg'] = '数据库操作失败'
+        else:
+            result['flag'] = -2
+            result['msg'] = '邮件发送失败'
+    elif school.getLecturesNum() > lecture_num:
+        result['flag'] = -3
+        result['msg'] = '数据库出错，请联系管理人627928753@qq.com'
+        set_params = {'lectures_num': lecture_num}
+        where_params = {'school_name': school_name}
+        if update_school(School.School, set_params, where_params):
+            result['flag'] = 0
+            result['msg'] = '数据库出错并以纠正'
+        else:
+            result['flag'] = -1
+            result['msg'] = '数据库操作失败'
+
+    elif school.getLecturesNum() < lecture_num:
+        new_lecture_num = lecture_num - school.getLecturesNum()
+        for i in range(new_lecture_num):
+            new_lecture = lectures[i].a.string + ':' + (global_ccnu_url + lectures[i].a['href'])
+            lecture_list.append(new_lecture)
+        email['content'] = lecture_list
+
+        if emailController.send(email):
+            result['flag'] = 0
+            set_params = {'lectures_num': lecture_num}
+            where_params = {'school_name': school_name}
+            if update_school(School.School, set_params, where_params) is not True:
+                result['flag'] = -1
+                result['msg'] = '数据库操作失败'
+        else:
+            result['flag'] = -2
+            result['msg'] = '邮件发送失败'
+    else:
+        result['flag'] = 1
+        result['msg'] = '没有新的通知'
+
+    return result
 # def application(environ, start_response):
 #     while True:
 #         print("[%s] %s" % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Starting...'))
@@ -281,4 +346,4 @@ if __name__ == '__main__':
     # test()
     # timing_test()
     # print(result)
-    print(lecture_whu())
+    print(lecture_ccnu())

@@ -19,7 +19,7 @@ def send(email_content):
 		s.ehlo()
 		s.starttls() #Puts connection to SMTP server in TLS mode
 		s.ehlo()
-		s.login('1716030824@qq.com', 'klxptdumbhspbiib')
+		s.login('1716030824@qq.com', 'lkwrwzwpcitaihii')
 		s.sendmail("1716030824@qq.com", "zhoum1118@163.com", msg.as_string().encode('utf-8'))
 		s.quit()
 		return True
